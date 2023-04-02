@@ -10,7 +10,7 @@ import requests
 
 
 def get_scorecard(
-    feed: "feedparser.util.FeedParserDict" = None,  # type: ignore
+    feed: "feedparser.util.FeedParserDict" = None,
     game: int = -1,
     code: int = -1,
 ) -> None:
@@ -275,7 +275,7 @@ def get_scorecard(
                 [
                     "{str:{width}}".format(str=p, width=bat_lens[j] + 3)
                     for j, p in enumerate(
-                        bats.loc[:, bats.columns != "Inns"].columns  # type: ignore
+                        bats.loc[:, bats.columns != "Inns"].columns
                     )
                 ]
             )
@@ -284,7 +284,7 @@ def get_scorecard(
         for _, x in bats[bats.Inns == i].iterrows():
             time.sleep(0.02)
 
-            for j in range(len(bats.loc[:, bats.columns != "Inns"].columns)):  # type: ignore
+            for j in range(len(bats.loc[:, bats.columns != "Inns"].columns)):
                 print(
                     "{str:{width}}".format(
                         str=str(x[j]), width=bat_lens[j] + 3
@@ -330,7 +330,7 @@ def get_scorecard(
                 [
                     "{str:{width}}".format(str=p, width=bowl_lens[j] + 3)
                     for j, p in enumerate(
-                        bowls.loc[:, bowls.columns != "Inns"].columns  # type: ignore
+                        bowls.loc[:, bowls.columns != "Inns"].columns
                     )
                 ]
             )
@@ -339,7 +339,7 @@ def get_scorecard(
         for _, x in bowls[bowls.Inns == i].iterrows():
             time.sleep(0.02)
 
-            for j in range(len(bowls.loc[:, bowls.columns != "Inns"].columns)):  # type: ignore
+            for j in range(len(bowls.loc[:, bowls.columns != "Inns"].columns)):
                 print(
                     "{str:{width}}".format(
                         str=str(x[j]), width=bowl_lens[j] + 3
