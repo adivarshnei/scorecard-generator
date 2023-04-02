@@ -1,5 +1,6 @@
 import json
 import os
+import platform
 import re
 import time
 
@@ -249,27 +250,27 @@ def get_scorecard(
                 len(total[i]) if len(total[i]) > bat_lens[i] else bat_lens[i]
             )
 
-    time.sleep(0.02)
+    # time.sleep(0.02)
     print()
-    time.sleep(0.02)
+    # time.sleep(0.02)
     print("*" * 80)
 
-    time.sleep(0.02)
+    # time.sleep(0.02)
     print(f"{match_description}\n")
-    time.sleep(0.02)
+    # time.sleep(0.02)
     print(f"Umpires: {', '.join(umpires)}\n")
-    time.sleep(0.02)
+    # time.sleep(0.02)
     print(f"URL: {html_url}\n")
 
     for i in bats.Inns.unique():
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print("-" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1)))
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print(f"Inning {i} : {inns_order[int(i)-1]}")
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print("-" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1)))
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print(
             "".join(
                 [
@@ -282,7 +283,7 @@ def get_scorecard(
         )
 
         for _, x in bats[bats.Inns == i].iterrows():
-            time.sleep(0.02)
+            # time.sleep(0.02)
 
             for j in range(len(bats.loc[:, bats.columns != "Inns"].columns)):
                 print(
@@ -294,10 +295,10 @@ def get_scorecard(
 
             print()
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print("-" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1)))
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print(
             "".join(
                 [
@@ -309,22 +310,22 @@ def get_scorecard(
             ),
         )
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print("-" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1)))
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print("\n\n")
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print("-" * (sum(bowl_lens[:-1]) + 3 * (len(bowl_lens[:-1]) - 1) + 1))
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print(
             f"Inning {i} : {[x for x in teams if x != inns_order[int(i)-1]][0]}"
         )
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print("-" * (sum(bowl_lens[:-1]) + 3 * (len(bowl_lens[:-1]) - 1) + 1))
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print(
             "".join(
                 [
@@ -337,7 +338,7 @@ def get_scorecard(
         )
 
         for _, x in bowls[bowls.Inns == i].iterrows():
-            time.sleep(0.02)
+            # time.sleep(0.02)
 
             for j in range(len(bowls.loc[:, bowls.columns != "Inns"].columns)):
                 print(
@@ -349,10 +350,10 @@ def get_scorecard(
 
             print()
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print("-" * (sum(bowl_lens[:-1]) + 3 * (len(bowl_lens[:-1]) - 1) + 1))
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print("\n")
 
     print()
@@ -367,48 +368,48 @@ def main() -> None:
 
         last = 0
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print("Current Matches: ")
 
         for i, x in enumerate(feed.entries):
-            time.sleep(0.02)
+            # time.sleep(0.02)
             print(f"{i + 1}: {x.title}")
             last = i
 
         last += 1
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print("\nOther options: ")
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print(f"{last + 1}: Custom Code")
-        time.sleep(0.02)
+        # time.sleep(0.02)
         print(f"{last + 2}: Exit")
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         game: int = int(input("Enter game: "))
 
-        os.system("cls")
+        os.system("cls" if platform.system() == 'Windows' else 'clear')
 
         if game == last + 1:
-            time.sleep(0.02)
+            # time.sleep(0.02)
             code = int(input("Enter match code: "))
 
             # os.system("cls")
 
             while True:
-                os.system("cls")
+                os.system("cls" if platform.system() == 'Windows' else 'clear')
                 get_scorecard(code=code)
-                time.sleep(5)
+                time.sleep(15)
         elif game == last + 2:
             break
         else:
             # os.system("cls")
 
             while True:
-                os.system("cls")
+                os.system("cls" if platform.system() == 'Windows' else 'clear')
                 get_scorecard(feed=feed, game=game - 1)
-                time.sleep(5)
+                time.sleep(15)
 
 
 if __name__ == "__main__":
