@@ -250,6 +250,7 @@ def get_scorecard(
                 len(total[i]) if len(total[i]) > bat_lens[i] else bat_lens[i]
             )
 
+    os.system("cls" if platform.system() == 'Windows' else 'clear')
     # time.sleep(0.02)
     print()
     # time.sleep(0.02)
@@ -398,7 +399,7 @@ def main() -> None:
             # os.system("cls")
 
             while True:
-                os.system("cls" if platform.system() == 'Windows' else 'clear')
+                # os.system("cls" if platform.system() == 'Windows' else 'clear')
                 get_scorecard(code=code)
                 time.sleep(15)
         elif game == last + 2:
@@ -407,7 +408,7 @@ def main() -> None:
             # os.system("cls")
 
             while True:
-                os.system("cls" if platform.system() == 'Windows' else 'clear')
+                # os.system("cls" if platform.system() == 'Windows' else 'clear')
                 get_scorecard(feed=feed, game=game - 1)
                 time.sleep(15)
 
