@@ -4,6 +4,13 @@ Simple python script to list current live cricket matches and view their scoreca
 
 Also can view any scorecard on Cricinfo if its match id is known.
 
+### Libraries Required:
+- [`beautifulsoup4`](https://pypi.org/project/beautifulsoup4/)
+- [`feedparser`](https://pypi.org/project/feedparser/)
+- [`pandas`](https://pypi.org/project/pandas/)
+- [`requests`](https://pypi.org/project/requests/)
+
+
 ### Screenshots:
 #### Print scorecard to `stdout`
 ![](img3.png)
