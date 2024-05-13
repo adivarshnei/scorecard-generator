@@ -1,36 +1,49 @@
+#!/usr/bin/env python3
+
 import json
 import os
 import platform
 import re
+import sys
 import time
+import warnings
 
 import bs4
 import feedparser
 import pandas as pd
 import requests
 
-TELETYPEMODE = True
-
 
 def get_scorecard(
-    feed: "feedparser.util.FeedParserDict" = None,
+    feed: "feedparser.util.FeedParserDict" = None,  # type: ignore
     game: int = -1,
     code: int = -1,
 ) -> None:
     if code == -1:
         json_url: str = f"{feed.entries[game].id[:-5]}.json"
 
+        print(f"JSON link: {json_url}")
+
         html_url = f"{requests.get(f'{json_url[:-5]}.html').url[:-19]}/full-scorecard"
     else:
         json_url = f"https://www.espncricinfo.com/matches/engine/match/{code}.json"
 
         html_url = f"{requests.get(f'https://www.espncricinfo.com/matches/engine/match/{code}.html').url}"
-        if not html_url.endswith("full-scorecard"):
-            print("Nope")
+        # if not html_url.endswith("full-scorecard"):
+        #     print("Nope")
 
     json_dict = json.loads(requests.get(json_url).text)
 
-    match_description = json_dict["description"]
+    match_description: str = json_dict["description"]
+    match_description = match_description.replace(
+        match_description[
+            match_description.find(" at ") + 4 : match_description.find(
+                ",", match_description.find(" at ")
+            )
+        ],
+        json_dict["match"]["ground_name"],
+    )
+
     umpires = [
         x["card_long"]
         for x in json_dict["official"]
@@ -47,6 +60,9 @@ def get_scorecard(
                 y["keeper"],
             ]
 
+    if html_url.endswith("live-cricket-score"):
+        html_url = html_url[: -len("live_cricket_score")] + "full-scorecard"
+
     page = requests.get(html_url)
     soup = bs4.BeautifulSoup(markup=page.content, features="lxml")
 
@@ -56,30 +72,53 @@ def get_scorecard(
         : -(len("full-scorecard") + 1)
     ].split("-")
 
-    t1 = []
-    t2 = []
+    t1_l = []
+    t2_l = []
     splitloc = len(found)
 
     for i in range(len(found)):
         if found[i] != "vs":
-            t1.append(found[i])
+            t1_l.append(found[i])
         else:
             splitloc = i
             break
 
     for i in range(splitloc + 1, len(found)):
         if not found[i][0].isdigit():
-            t2.append(found[i])
+            t2_l.append(found[i])
         else:
             break
 
-    t1 = " ".join(t1).title()
-    t2 = " ".join(t2).title()
+    t1 = " ".join(t1_l).title()
+    t2 = " ".join(t2_l).title()
 
-    inns_order = re.findall(
-        r'<span class="ds-text-title-xs ds-font-bold ds-capitalize">\s*([A-Za-z0-9 ]*)\s*</span>',
+    inns_order: list = re.findall(
+        r'<span class="ds-text-title-xs ds-font-bold'
+        r' ds-capitalize">\s*([A-Za-z0-9'
+        r" ]*)\s*</span>",
         string=soup.prettify(),
     )
+
+    if len(inns_order) == 0:
+        inns_order = [str(x["batting_team_id"]) for x in json_dict["innings"]]
+
+        inns_order[:] = [
+            (
+                x
+                if x != json_dict["match"]["team1_id"]
+                else json_dict["match"]["team1_name"]
+            )
+            for x in inns_order
+        ]
+
+        inns_order[:] = [
+            (
+                x
+                if x != json_dict["match"]["team2_id"]
+                else json_dict["match"]["team2_name"]
+            )
+            for x in inns_order
+        ]
 
     teams = [json_dict["match"]["team1_name"], json_dict["match"]["team2_name"]]
 
@@ -136,12 +175,13 @@ def get_scorecard(
                     for key, value in player_dict.items():
                         name = name.replace(key, value[0])
 
-                    f, l = name.split(" ", 1)
+                    if " " in name:
+                        f, l = name.split(" ", 1)
 
-                    if f.isupper():
-                        f = ".".join(f[i : i + 1] for i in range(len(f))) + "."
+                        if f.isupper():
+                            f = ".".join(f[i : i + 1] for i in range(len(f))) + "."
 
-                    name = " ".join([f, l])
+                        name = " ".join([f, l])
 
                     new = [
                         [
@@ -171,6 +211,7 @@ def get_scorecard(
 
                         if f.isupper():
                             f = ".".join(f[i : i + 1] for i in range(len(f))) + "."
+                            # print(f)
 
                         name = " ".join([f, l])
 
@@ -206,9 +247,16 @@ def get_scorecard(
             cols = row.find_all("td")
             cols = [x.text.strip() for x in cols]
 
-            if cols[0][0].isdigit():
+            # print(cols)
+
+            # print(len(cols), len(bowls.columns))
+
+            if len(cols[0]) == 0:
                 continue
-            elif len(cols) == len(bowls.columns) - 1:
+            elif cols[0][0].isdigit():
+                continue
+            elif len(cols) >= len(bowls.columns) - 1:
+                cols = cols[: len(bowls.columns) - 1]
                 name = cols[0]
                 for key, value in player_dict.items():
                     name = name.replace(key, value[0])
@@ -235,79 +283,49 @@ def get_scorecard(
     bats.reset_index()
 
     bat_lens = [max([len(str(y)) for y in bats[x]]) for x in bats.columns]
+    # print(bowls)
     bowl_lens = [max([len(str(y)) for y in bowls[x]]) for x in bowls.columns]
 
     for total in totals:
         for i in range(len(total)):
             bat_lens[i] = len(total[i]) if len(total[i]) > bat_lens[i] else bat_lens[i]
 
-    os.system("cls" if platform.system() == "Windows" else "clear")
-
-    if TELETYPEMODE:
-        time.sleep(0.02)
-
+    if code == -1:
+        os.system("printf '\\33c\\e[3J'")
     print()
-
-    if TELETYPEMODE:
-        time.sleep(0.02)
-
-    print("*" * 80)
-
-    if TELETYPEMODE:
-        time.sleep(0.02)
-
+    print("═" * 80)
     print(f"{match_description}\n")
-
-    if TELETYPEMODE:
-        time.sleep(0.02)
-
     print(f"Umpires: {', '.join(umpires)}\n")
-
-    if TELETYPEMODE:
-        time.sleep(0.02)
-
     print(f"URL: {html_url}\n")
+    print(f"{json_dict['live']['status']}\n")
 
     for i in bats.Inns.unique():
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print("-" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1)))
-        if TELETYPEMODE:
-            time.sleep(0.02)
+        print("━" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1) + 1))
         print(f"Inning {i} : {inns_order[int(i)-1]}")
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print("-" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1)))
-
-        if TELETYPEMODE:
-            time.sleep(0.02)
+        print("━" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1) + 1))
         print(
             "".join(
                 [
                     "{str:{width}}".format(str=p, width=bat_lens[j] + 3)
-                    for j, p in enumerate(bats.loc[:, bats.columns != "Inns"].columns)
+                    for j, p in enumerate(
+                        bats.loc[:, bats.columns != "Inns"].columns  # type: ignore
+                    )
                 ]
             )
         )
 
         for _, x in bats[bats.Inns == i].iterrows():
-            if TELETYPEMODE:
-                time.sleep(0.02)
-
-            for j in range(len(bats.loc[:, bats.columns != "Inns"].columns)):
-                print(
-                    "{str:{width}}".format(str=str(x[j]), width=bat_lens[j] + 3),
-                    end="",
-                )
+            for j in range(len(bats.loc[:, bats.columns != "Inns"].columns)):  # type: ignore
+                with warnings.catch_warnings():
+                    warnings.simplefilter(action="ignore", category=FutureWarning)
+                    print(
+                        "{str:{width}}".format(str=str(x[j]), width=bat_lens[j] + 3),
+                        end="",
+                    )
 
             print()
 
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print("-" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1)))
-
-        if TELETYPEMODE:
-            time.sleep(0.02)
+        print("━" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1) + 1))
         print(
             "".join(
                 [
@@ -318,117 +336,81 @@ def get_scorecard(
                 ]
             ),
         )
-
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print("-" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1)))
-
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print("\n\n")
-
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print("-" * (sum(bowl_lens[:-1]) + 3 * (len(bowl_lens[:-1]) - 1) + 1))
-        if TELETYPEMODE:
-            time.sleep(0.02)
+        print("━" * (sum(bat_lens[:-1]) + 3 * (len(bat_lens[:-1]) - 1) + 1))
+        print()
+        print("━" * (sum(bowl_lens[:-1]) + 3 * (len(bowl_lens[:-1]) - 1) + 1))
         print(f"Inning {i} : {[x for x in teams if x != inns_order[int(i)-1]][0]}")
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print("-" * (sum(bowl_lens[:-1]) + 3 * (len(bowl_lens[:-1]) - 1) + 1))
-
-        if TELETYPEMODE:
-            time.sleep(0.02)
+        print("━" * (sum(bowl_lens[:-1]) + 3 * (len(bowl_lens[:-1]) - 1) + 1))
         print(
             "".join(
                 [
                     "{str:{width}}".format(str=p, width=bowl_lens[j] + 3)
-                    for j, p in enumerate(bowls.loc[:, bowls.columns != "Inns"].columns)
+                    for j, p in enumerate(
+                        bowls.loc[:, bowls.columns != "Inns"].columns  # type: ignore
+                    )
                 ]
             )
         )
 
         for _, x in bowls[bowls.Inns == i].iterrows():
-            if TELETYPEMODE:
-                time.sleep(0.02)
-
-            for j in range(len(bowls.loc[:, bowls.columns != "Inns"].columns)):
-                print(
-                    "{str:{width}}".format(str=str(x[j]), width=bowl_lens[j] + 3),
-                    end="",
-                )
+            for j in range(len(bowls.loc[:, bowls.columns != "Inns"].columns)):  # type: ignore
+                with warnings.catch_warnings():
+                    warnings.simplefilter(action="ignore", category=FutureWarning)
+                    print(
+                        "{str:{width}}".format(str=str(x[j]), width=bowl_lens[j] + 3),
+                        end="",
+                    )
 
             print()
 
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print("-" * (sum(bowl_lens[:-1]) + 3 * (len(bowl_lens[:-1]) - 1) + 1))
-
-        if TELETYPEMODE:
-            time.sleep(0.02)
+        print("━" * (sum(bowl_lens[:-1]) + 3 * (len(bowl_lens[:-1]) - 1) + 1))
         print("\n")
 
     print()
-    print("*" * 80)
+    print("═" * 80)
 
 
 def main() -> None:
-    while True:
-        feed: feedparser.util.FeedParserDict = feedparser.parse(
-            "https://www.espncricinfo.com/rss/livescores.xml"
-        )
+    if len(sys.argv) > 1:
+        get_scorecard(code=int(sys.argv[1]))
+    else:
+        print("1. Get Current Matches")
+        print("2. Custom Code")
+        print("3. Exit")
 
-        last = 0
+        choice: int = int(input("Enter option: "))
 
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print("Current Matches: ")
+        if choice == 1:
+            while True:
+                feed: feedparser.util.FeedParserDict = feedparser.parse(
+                    "https://www.espncricinfo.com/rss/livescores.xml"
+                )
 
-        for i, x in enumerate(feed.entries):
-            if TELETYPEMODE:
-                time.sleep(0.02)
-            print(f"{i + 1}: {x.title}")
-            last = i
+                last = 0
 
-        last += 1
+                print("Current Matches: ")
 
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print("\nOther options: ")
+                for i, x in enumerate(feed.entries):
+                    print(f"{i + 1}: {x.title}")
+                    last = i
 
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print(f"{last + 1}: Custom Code")
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        print(f"{last + 2}: Exit")
+                last += 1
 
-        if TELETYPEMODE:
-            time.sleep(0.02)
-        game: int = int(input("Enter game: "))
+                game: int = int(input("Enter game: "))
 
-        os.system("cls" if platform.system() == "Windows" else "clear")
+                while True:
+                    get_scorecard(feed=feed, game=game - 1)
 
-        if game == last + 1:
-            if TELETYPEMODE:
-                time.sleep(0.02)
+                    time.sleep(5)
+
+        elif choice == 2:
             code = int(input("Enter match code: "))
 
-            # os.system("cls")
-
             while True:
-                # os.system("cls" if platform.system() == 'Windows' else 'clear')
                 get_scorecard(code=code)
-                time.sleep(10)
-        elif game == last + 2:
-            break
-        else:
-            # os.system("cls")
-
-            while True:
-                # os.system("cls" if platform.system() == 'Windows' else 'clear')
-                get_scorecard(feed=feed, game=game - 1)
-                time.sleep(10)
+                time.sleep(15)
+        elif choice == 3:
+            pass
 
 
 if __name__ == "__main__":
